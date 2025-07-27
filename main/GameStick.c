@@ -1,25 +1,15 @@
-#include <stdio.h>
-#include "esp_log.h"
-#include "esp_bt.h"
-#include "esp_bt_defs.h"
-#include "esp_bt_main.h"
-#include "esp_bt_device.h"
-#include "esp_gap_ble_api.h"
-#include "esp_gatts_api.h"
-#include "esp_check.h"
-#include "nvs_flash.h"
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "gap_handler.h"
-#include "gatt_server_handler.h"
-
-static const char* TAG = "GameStick";
+#include "GameStick.h"
 
 void app_main(void)
 {
     ESP_LOGI(TAG, "Initializing ...");
+
+    SemaphoreHandle_t exit_semaphore;
+    exit_semaphore = xSemaphoreCreateBinary();
+    if (exit_semaphore == NULL) {
+        ESP_LOGE(TAG, "Failed to create exit semaphore");
+        return;
+    }
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -69,8 +59,21 @@ void app_main(void)
         ESP_LOGI(TAG, "Bluetooth enabled successfully");
     }
 
+    // Set security parameters
+    esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND;
+    esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;
+    uint8_t key_size = 16;
+    uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+    uint8_t resp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+
+    esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &resp_key, sizeof(uint8_t));
+
     // Set device name
-    ret = esp_ble_gap_set_device_name("ESP32_BLE");
+    ret = esp_ble_gap_set_device_name("ESP32 GameStick");
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set device name: %s", esp_err_to_name(ret));
         goto uninit_droid;
@@ -95,8 +98,23 @@ void app_main(void)
         ESP_LOGI(TAG, "GATT server callback registered successfully");
     }
 
-    // Create GATT server
-    // esp_ble_gatts_app_register(APP_ID);
+    // Register GATT application
+    ret = esp_ble_gatts_app_register(APP_ID);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register GATT application: %s", esp_err_to_name(ret));
+        goto uninit_droid;
+    } else {
+        ESP_LOGI(TAG, "GATT application registered successfully");
+    }
+
+    // Increase max bytes transferred?
+    // esp_ble_gatt_set_local_mtu(200);
+
+    // At this point, we should be connected and we can start other tasks
+    ESP_LOGI(TAG, "Bluetooth ready. Starting main tasks...");
+
+    // Exit starts here, use semaphore to wait
+    xSemaphoreTake(exit_semaphore, portMAX_DELAY);
 
     // Disable Bluetooth
     ret = esp_bluedroid_disable();
