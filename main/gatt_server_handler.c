@@ -22,6 +22,9 @@ void gatt_server_event_handler(esp_gatts_cb_event_t event,
                      param->connect.remote_bda[3],
                      param->connect.remote_bda[4],
                      param->connect.remote_bda[5]);
+            
+            // Resume BLE packet sending task upon connection
+            resume_send_ble_packets();
             break;
 
         case ESP_GATTS_DISCONNECT_EVT:
@@ -33,6 +36,9 @@ void gatt_server_event_handler(esp_gatts_cb_event_t event,
                      param->disconnect.remote_bda[3],
                      param->disconnect.remote_bda[4],
                      param->disconnect.remote_bda[5]);
+
+            // Suspend BLE packet sending task upon disconnection
+            suspend_send_ble_packets();
             
             // Restart advertising after disconnection
             esp_err_t ret = start_advertise();
@@ -43,7 +49,9 @@ void gatt_server_event_handler(esp_gatts_cb_event_t event,
             }
             break;
         
-        // TODO: Handle these events: 4
+        case ESP_GATTS_MTU_EVT:
+            ESP_LOGI(TAG, "MTU size set to %d", param->mtu.mtu);
+            break;
 
         default:
             ESP_LOGI(TAG, "Unhandled GATT server event: %d", event);

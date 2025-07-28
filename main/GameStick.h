@@ -15,6 +15,7 @@
 
 #include "gap_handler.h"
 #include "gatt_server_handler.h"
+#include "tasks.h"
 
 #define APP_ID 0
 

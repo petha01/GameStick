@@ -123,7 +123,14 @@ void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             ESP_LOGI(TAG, "Unbonded device successfully");
             break;
         
-        // TOOD: Handle these events: 21, 9
+        case ESP_GAP_BLE_KEY_EVT:
+            ESP_LOGI(TAG, "Key event received, type: %d", param->ble_security.ble_key.key_type);
+            break;
+        
+        case ESP_GAP_BLE_SET_PKT_LENGTH_COMPLETE_EVT:
+            ESP_LOGI(TAG, "Packet length set successfully");
+            break;
+        
         default:
             ESP_LOGI(TAG, "Unhandled GAP event: %d", event);
             break;

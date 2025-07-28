@@ -24,6 +24,9 @@ void app_main(void)
         ESP_LOGI(TAG, "NVS initialized successfully");
     }
 
+    // Create and suspend tasks
+    create_send_ble_packets();
+
     // Initialize BT Controller with default config
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ret = esp_bt_controller_init(&bt_cfg);
@@ -110,9 +113,6 @@ void app_main(void)
     // Increase max bytes transferred?
     // esp_ble_gatt_set_local_mtu(200);
 
-    // At this point, we should be connected and we can start other tasks
-    ESP_LOGI(TAG, "Bluetooth ready. Starting main tasks...");
-
     // Exit starts here, use semaphore to wait
     xSemaphoreTake(exit_semaphore, portMAX_DELAY);
 
@@ -145,6 +145,11 @@ uninit_controller:
     }
 
 uninit_nvs:
+
+    // Delete tasks
+    delete_send_ble_packets();
+    
+    // Deinitialize NVS
     ret = nvs_flash_deinit();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to deinitialize NVS: %s", esp_err_to_name(ret));
